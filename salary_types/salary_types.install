@@ -1,0 +1,152 @@
+<?php
+
+define('node_employee', 'employee');
+
+
+function salary_types() {
+  return array(
+    'Low Salary',
+    'Medium Salary',
+    'High Salary',
+  );
+}
+
+/**
+ * @file
+ * Implements hook_install.
+ */
+
+function salary_types_install() {
+  create_taxonomy();
+  create_content_type();
+}
+
+function create_taxonomy(){
+   $vocabulary = new stdClass();
+  $vocabulary->name = 'Salary Types';
+  $vocabulary->machine_name = "salary_types";
+  $vocabulary->description = t('Salary Types');
+  $vocabulary->module = 'salary_types';
+
+  taxonomy_vocabulary_save($vocabulary);
+
+  $vid = taxonomy_vocabulary_machine_name_load('salary_types')->vid;
+
+  $terms = salary_types();
+  foreach ($terms as $id => $nombre) {
+    taxonomy_term_save((object) array(
+      'name' => $nombre,
+      'vid' => $vid,
+    ));
+  }
+}
+/**
+ * Create a content type and attach our created taxonomy to it.
+ */
+function create_content_type(){
+  $t = get_t();
+
+  $node = array(
+    'type' => node_employee,
+    'name' => $t('employee name'),
+    'base' => 'node_employee',
+    'description' => $t('Put the name of the Employee'),
+    'title_label' => $t('Employee name'),
+    'custom' => TRUE
+  );
+
+  $field = array(
+    'field_name' => 'employee_age',
+    'type' => 'number_integer',
+    'label' => $t('Age'),
+  );
+  field_create_field($field);
+
+  $field = array(
+    'field_name' => 'employee_id',
+    'type' => 'text',
+    'label' => $t('Id'),
+  );
+  field_create_field($field);
+
+  $field = array(
+    'field_name' => 'field_tax_name',
+    'type' => 'taxonomy_term_reference',
+    'label' => $t('Salary type'),
+    'settings' => array(
+      'allowed_values' => array(
+        array(
+          'vocabulary' => salary_types,
+          'parent' => 3
+        )
+      )
+    )
+  );
+  field_create_field($field);
+
+  $instance = array(
+    'field_name' => 'employee_age',
+    'entity_type' => 'node',
+    'bundle' => node_employee,
+    'label' => $t('Employee Age'),
+    'description' => 'Put age of the Employee',
+    'required' => TRUE,
+    'widget' => array(
+      'type' => 'text_textfield',
+      'weight' => 3,
+    )
+  );
+  field_create_instance($instance);
+
+  $instance = array(
+    'field_name' => 'employee_id',
+    'entity_type' => 'node',
+    'bundle' => node_employee,
+    'label' => $t('Employee Id'),
+    'description' => 'Put id of the employee ',
+    'required' => TRUE,
+    'widget' => array(
+      'type' => 'text_textfield',
+      'weight' => 3,
+    )
+  );
+  field_create_instance($instance);
+
+  $instance = array(
+    'field_name' => 'Salary',
+    'entity_type' => 'node',
+    'bundle' => node_employee,
+    'label' => $t('Salary Type'),
+    'description' => 'Salary Type',
+    'required' => TRUE,
+    'widget' => array(
+      'type' => 'options_select',
+      'weight' => 3,
+    )
+  );
+  field_create_instance($instance);
+
+}
+
+/**
+ * @file
+ * Implements hook_install.
+ */
+
+function salary_types_uninstall() {
+  // Remove variables.
+  variable_del('Low Salary');
+  variable_del('Medium Salary');
+  variable_del('High Salary');
+  $vocabularies = taxonomy_get_vocabularies();
+  foreach ($vocabularies as $vocabulary) {
+    field_attach_delete_bundle('taxonomy_term', $vocabulary->salary_types);
+  }
+  $node_types = node_type_get_types();
+    foreach ($node_types as $node_type) {
+    if ($instance = field_info_instance('node_employee', 'employee', $node_type->type)) {
+      field_delete_instance($instance);
+      $ret = array();
+    }
+  }
+}
