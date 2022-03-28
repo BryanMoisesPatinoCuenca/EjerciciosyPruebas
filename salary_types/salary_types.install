@@ -1,8 +1,14 @@
 <?php
 
-define('node_employee', 'employee');
 
+/**
+ * @file
+ * Creación de Taxonomia y tipo de contenido.
+ */
 
+/**
+ * Creación de terminos de la Taxonomia.
+ */
 function salary_types() {
   return array(
     'Low Salary',
@@ -12,17 +18,10 @@ function salary_types() {
 }
 
 /**
- * @file
- * Implements hook_install.
+ * Creación de Taxonomia.
  */
-
-function salary_types_install() {
-  create_taxonomy();
-  create_content_type();
-}
-
-function create_taxonomy(){
-   $vocabulary = new stdClass();
+function create_taxonomy() {
+  $vocabulary = new stdClass();
   $vocabulary->name = 'Salary Types';
   $vocabulary->machine_name = "salary_types";
   $vocabulary->description = t('Salary Types');
@@ -33,120 +32,369 @@ function create_taxonomy(){
   $vid = taxonomy_vocabulary_machine_name_load('salary_types')->vid;
 
   $terms = salary_types();
-  foreach ($terms as $id => $nombre) {
+  foreach ($terms as $nombre) {
+    $vocabulary = new stdClass();
+    $vocabulary->name = $nombre;
+    $vocabulary->vid = $vid;
     taxonomy_term_save((object) array(
       'name' => $nombre,
       'vid' => $vid,
     ));
   }
 }
+
 /**
  * Create a content type and attach our created taxonomy to it.
  */
-function create_content_type(){
+function create_content_type() {
+
   $t = get_t();
 
-  $node = array(
-    'type' => node_employee,
-    'name' => $t('employee name'),
-    'base' => 'node_employee',
-    'description' => $t('Put the name of the Employee'),
-    'title_label' => $t('Employee name'),
-    'custom' => TRUE
+  $content_type = array(
+
+    'type'          => 'employee',
+    'name'          => $t('Employee'),
+    'description'   => $t('Create a new employee'),
+    'title_label'   => $t('Employee Name'),
+    'base'          => 'node_content',
+    'custom'        => TRUE,
+
   );
 
-  $field = array(
-    'field_name' => 'employee_age',
-    'type' => 'number_integer',
-    'label' => $t('Age'),
-  );
-  field_create_field($field);
+  $node_type = node_type_set_defaults($content_type);
+  node_type_save($node_type);
 
-  $field = array(
-    'field_name' => 'employee_id',
-    'type' => 'text',
-    'label' => $t('Id'),
-  );
-  field_create_field($field);
+  // Step 2 - Create new fields
 
-  $field = array(
-    'field_name' => 'field_tax_name',
-    'type' => 'taxonomy_term_reference',
-    'label' => $t('Salary type'),
-    'settings' => array(
-      'allowed_values' => array(
-        array(
-          'vocabulary' => salary_types,
-          'parent' => 3
-        )
-      )
-    )
-  );
-  field_create_field($field);
+  $fields = array(
 
-  $instance = array(
-    'field_name' => 'employee_age',
-    'entity_type' => 'node',
-    'bundle' => node_employee,
-    'label' => $t('Employee Age'),
-    'description' => 'Put age of the Employee',
-    'required' => TRUE,
-    'widget' => array(
-      'type' => 'text_textfield',
-      'weight' => 3,
-    )
-  );
-  field_create_instance($instance);
+    'employee_id'  => array(
 
-  $instance = array(
-    'field_name' => 'employee_id',
-    'entity_type' => 'node',
-    'bundle' => node_employee,
-    'label' => $t('Employee Id'),
-    'description' => 'Put id of the employee ',
-    'required' => TRUE,
-    'widget' => array(
-      'type' => 'text_textfield',
-      'weight' => 3,
-    )
-  );
-  field_create_instance($instance);
+      'field_name' => 'employee_id',
+      'type' => 'text',
 
-  $instance = array(
-    'field_name' => 'Salary',
-    'entity_type' => 'node',
-    'bundle' => node_employee,
-    'label' => $t('Salary Type'),
-    'description' => 'Salary Type',
-    'required' => TRUE,
-    'widget' => array(
-      'type' => 'options_select',
-      'weight' => 3,
-    )
-  );
-  field_create_instance($instance);
+    ),
 
+    'employee_age'  => array(
+
+      'field_name' => 'employee_age',
+      'type' => 'number_integer',
+
+    ),
+
+    'employee_salary'  => array(
+
+      'field_name' => 'employee_salary',
+      'type' => 'taxonomy_term_reference',
+      'settings' => array(
+        'allowed_values' => array(
+          array(
+            'vocabulary' => 'salary_types',
+          ),
+        ),
+      ),
+    ),
+  );
+
+  foreach ($fields as $field) {
+
+    field_create_field($field);
+  }
+
+  // Step 3 - Attach fields to content type
+
+  $instances = array(
+
+    'employee_id'  => array(
+
+      'field_name'   => 'employee_id',
+      'entity_type' => 'node',
+      'bundle' => 'employee',
+      'label'        => $t('Employee id'),
+      'required'     => TRUE,
+
+    ),
+
+    'employee_age'  => array(
+
+      'field_name'   => 'employee_age',
+      'entity_type' => 'node',
+      'bundle' => 'employee',
+      'label'        => $t('Employee Age'),
+      'required'     => TRUE,
+
+    ),
+
+    'employee_salary'  => array(
+
+      'field_name' => 'employee_salary',
+      'entity_type' => 'node',
+      'bundle' => 'employee',
+      'label' => $t('Employee Salary'),
+      'description' => $t('Put salary of the Employee'),
+      'required' => TRUE,
+      'widget' => array(
+        'type' => 'option_select',
+      ),
+    ),
+
+  );
+
+  foreach ($instances as $instance) {
+    field_create_instance($instance);
+  }
 }
 
 /**
- * @file
- * Implements hook_install.
+ * Creación de una funcion para el curl  y traer datos desde la API.
  */
+function curl_employee() {
+  $curl = curl_init();
 
-function salary_types_uninstall() {
-  // Remove variables.
-  variable_del('Low Salary');
-  variable_del('Medium Salary');
-  variable_del('High Salary');
-  $vocabularies = taxonomy_get_vocabularies();
-  foreach ($vocabularies as $vocabulary) {
-    field_attach_delete_bundle('taxonomy_term', $vocabulary->salary_types);
+  curl_setopt_array($curl, array(
+    CURLOPT_URL => 'http://dummy.restapiexample.com/api/v1/employees',
+    CURLOPT_RETURNTRANSFER => TRUE,
+    CURLOPT_ENCODING => '',
+    CURLOPT_MAXREDIRS => 70,
+    CURLOPT_TIMEOUT => 100,
+    CURLOPT_FOLLOWLOCATION => TRUE,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    CURLOPT_CUSTOMREQUEST => 'GET',
+    /**
+     * Specify debug option.
+     */
+    CURLOPT_VERBOSE => TRUE,
+
+    /**
+     * Specify log file.
+     * Make sure that the folder is writable.
+     */
+    CURLOPT_STDERR => fopen('./curl.log', 'w+'),
+  ));
+
+  $response = curl_exec($curl);
+  $error = curl_errno($curl);
+  $decoded = json_decode($response, TRUE);
+  $data = $decoded['data'];
+    watchdog(
+
+      'Salary types',
+      'error: <pre>%error<pre>',
+      [
+        '%error' => print_r($error, TRUE),
+      ],
+      WATCHDOG_DEBUG
+    );
+  curl_close($curl);
+  return $data;
+}
+
+/**
+ * Implements batch.
+ */
+function batch_employee() {
+  drupal_set_message('Updating Employees Nodes');
+  // load all nodes
+  $nodes = curl_employee();
+  if (empty($nodes)) {
+    drupal_set_message("No se subieron los nodos");
+    watchdog(
+
+      'Salary types',
+      'nodes: <pre>%nodes<pre>',
+      [
+        '%nodes' => print_r($nodes, TRUE),
+      ],
+      WATCHDOG_DEBUG
+
+    );
+    return FALSE;
+  } else {
+    foreach ($nodes as $nid => $node) {
+      // $operations[] = array(<function name>, <array of arguments to pass to function>);
+      $operations[] = array('batch_employee_run', array($node));
+    }
+    watchdog(
+
+      'Salary types',
+      'batch: <pre>%batch<pre>',
+      [
+        '%batch' => print_r($operations, TRUE),
+      ],
+      WATCHDOG_DEBUG
+
+    );
   }
-  $node_types = node_type_get_types();
-    foreach ($node_types as $node_type) {
-    if ($instance = field_info_instance('node_employee', 'employee', $node_type->type)) {
+
+  // build the batch instructions
+  $batch = array(
+    'operations' => $operations,
+    'title' => t('Import batch'),
+    'init_message' => t('Initializing'),
+    'error_message' => t('An error occurred'),
+    'finished' => 'batch_employee_finished',
+  );
+
+  batch_set($batch);
+  // batch_process('node');
+  return $batch;
+}
+
+/**
+ * Implements batch_run.
+ */
+function batch_employee_run($node, &$context) {
+  //Averiguar que es contex y para que sirve
+  // $context['results'][] = $node . ' : ' . check_plain($node);
+
+  $employee = new stdClass();
+  $employee->type = 'employee';
+  $employee->language = LANGUAGE_NONE;
+  $employee->title = $node['employee'];
+  $employee->employee_id[$employee->language][0]['value'] = $node['id'];
+  $employee->employee_age[$employee->language][0]['value'] = $node['employee_age'];
+
+  $low = taxonomy_get_term_by_name('Low Salary');
+  $med = taxonomy_get_term_by_name('Medium Salary');
+  $high = taxonomy_get_term_by_name('High Salary');
+
+  if ($node['employee_salary'] <= 20000) {
+    $employee->employee_salary_type[$employee->language][0]['tid'] = $low->tid;
+  }
+  elseif ($node['employee_salary'] >= 20001 && $node['employee_salary'] <= 50000) {
+    $employee->employee_salary_type[$employee->language][0]['tid'] = $med->tid;
+  }
+  else {
+    $employee->employee_salary_type[$employee->language][0]['tid'] = $high->tid;
+  }
+  $employee->status = 1;
+
+  node_save($employee);
+  $context['results']['processed']++;
+  $context['message'] = t('Processing employee "@title"', array('@title' => $employee->title));
+
+  watchdog(
+
+    'Salary types',
+    'batchrun: <pre>%batchrun<pre>',
+    [
+      '%batchrun' => print_r($employee, TRUE),
+    ],
+    WATCHDOG_DEBUG
+
+  );
+}
+
+
+/**
+ * Batch 'finished' callback
+ */
+function batch_employee_finished($success, $results, $operations) {
+  if ($success) {
+    // Here we could do something meaningful with the results.
+    // We just display the number of nodes we processed...
+    drupal_set_message(t('@count nodes  processed.', array('@count' => count($results))));
+    watchdog(
+    'Salary types',
+    'batchrun: <pre>%batchrun<pre>',
+    [
+      '%batchrun' => print_r($results, TRUE),
+    ],
+    WATCHDOG_DEBUG
+
+  );
+  }
+  else {
+    // An error occurred.
+    // $operations contains the operations that remained unprocessed.
+    $error_operation = reset($operations);
+    drupal_set_message(t('An error occurred while processing @operation with arguments : @args', array('@operation' => $error_operation[0], '@args' => print_r($error_operation[0], TRUE))));
+    watchdog(
+
+      'Salary types',
+      'batcherror: <pre>%batcherror<pre>',
+      [
+        '%batcherror' => print_r($error_operation, TRUE),
+      ],
+      WATCHDOG_DEBUG
+
+    );
+  }
+}
+
+/**
+* Implements hook_install().
+*/
+function salary_types_install() {
+  create_taxonomy();
+  create_content_type();
+  batch_employee();
+}
+
+/**
+* Implements hook_uninstall().
+*/
+function salary_types_uninstall() {
+  $vocabulary = taxonomy_vocabulary_machine_name_load('salary_types');
+  $terms = taxonomy_get_tree($vocabulary->vid);
+  foreach ($terms as $term) {
+    taxonomy_term_delete($term->tid);
+  }
+  taxonomy_vocabulary_delete($vocabulary->vid);
+
+  node_type_delete('employee');
+  variable_del('node_preview_employee');
+
+  // Delete fields and instances and db recorrds.
+  $fields = [
+
+    'comment_body' => array(
+    'field_name' => 'comment_body',
+    'entity_type' => 'comment',
+    'bundle' => 'comment_node_employee',
+    ),
+
+    'employee_id' => array(
+    'field_name' => 'employee_id',
+    'entity_type' => 'node',
+    'bundle' => 'employee',
+
+    ),
+
+    'employee_age' => array(
+    'field_name' => 'employee_age',
+    'entity_type' => 'node',
+    'bundle' => 'employee',
+
+    ),
+
+    'employee_salary' => array(
+    'field_name' => 'employee_salary',
+    'entity_type' => 'node',
+    'bundle' => 'employee',
+
+  ),
+
+  ];
+  // Hacer función que contenga los fields y luego guardarla en una variable en cada función que la necesite
+  foreach ($fields as $field) {
+
+    if ($instance = field_info_instance($field['entity_type'], $field['field_name'], $field['bundle'])) {
+
+    // field_delete_.... es para indicarle al cron que debe eliminar
+
+    // esos campos.
+
       field_delete_instance($instance);
-      $ret = array();
+
+      $enough_range_to_delete_everything = 9999999;
+
+      // Esto se usa porque los campos no seran eliminados de la db
+
+      // hasta realizar un Cron.
+
+      field_purge_batch($enough_range_to_delete_everything);
+
     }
   }
 }
